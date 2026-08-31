@@ -38,6 +38,10 @@ const WerkvormCard: React.FC<IWerkvormCardProps> = ({
             src={imageSrc}
             alt={werkvorm.title}
             className={styles.image}
+            // Pas laden zodra de kaart in beeld komt; scheelt bij het openen
+            // van de bibliotheek een paar MB aan afbeeldingen.
+            loading="lazy"
+            decoding="async"
             onError={() => setImgError(true)}
           />
         ) : (
