@@ -1,0 +1,121 @@
+.admin {
+  padding: 24px;
+  max-width: 900px;
+}
+.headRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.title {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--m-navy);
+}
+.sub {
+  margin: 4px 0 0 0;
+  font-size: 13px;
+  color: var(--m-text-soft);
+}
+.addBtn {
+  border: none;
+  background: var(--m-navy);
+  color: #fff;
+  padding: 10px 18px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  white-space: nowrap;
+  &:hover {
+    background: #0f1533;
+  }
+}
+.sectionTitle {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--m-navy);
+}
+.hint {
+  color: var(--m-text-soft);
+  font-size: 14px;
+}
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.card {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  background: var(--m-surface);
+  border: 1px solid var(--m-border);
+  border-radius: 12px;
+  padding: 16px;
+}
+.info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--m-navy);
+  min-width: 0;
+}
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.tag {
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--m-blue-tint);
+  color: var(--m-blue-dark);
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+.meta {
+  font-size: 12px;
+  color: var(--m-text-soft);
+}
+.goal {
+  font-size: 13px;
+  color: var(--m-text-2);
+}
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex-shrink: 0;
+  button {
+    border: 1px solid var(--m-border);
+    background: var(--m-surface);
+    color: var(--m-navy);
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    &:hover {
+      border-color: var(--m-blue);
+    }
+  }
+}
+.approve {
+  background: var(--m-navy) !important;
+  color: #fff !important;
+  border-color: var(--m-navy) !important;
+  &:hover {
+    background: #0f1533 !important;
+  }
+}
+.reject {
+  color: #dc2626 !important;
+}

@@ -1,0 +1,164 @@
+.werkvormen {
+  // Morgens-huisstijl (lichte modus)
+  --m-navy: #0c1a55;
+  --m-blue: #44c8f5;
+  --m-blue-dark: #0c1a55;
+  --m-blue-light: #6dcff6;
+  --m-blue-tint: #e1f3fd;
+  --m-orange: #f7931d;
+  --m-grey: #404041;
+  --m-bg: #f5fafe;
+  --m-border: #dbe6f0;
+  --m-text-soft: #5b6b86;
+
+  // Thema-variabelen (worden in dark mode overschreven)
+  --m-surface: #ffffff; // kaarten, panelen, balken
+  --m-surface-2: #f1f5f9; // subtiele vlakken, hover
+  --m-text: #0c1a55; // hoofdtekst
+  --m-text-2: #475569; // lopende tekst
+  --m-input-bg: #ffffff;
+  --m-shadow: rgba(21, 30, 70, 0.12);
+  --m-tip-bg: #fffbeb;
+  --m-tip-border: #fef3c7;
+  --m-tip-title: #78350f;
+  --m-tip-text: #92400e;
+  --m-fav-bg: rgba(255, 255, 255, 0.9);
+  --m-fav-color: #0c1a55;
+
+  background: var(--m-bg);
+  color: var(--m-text);
+  font-family: Calibri, "Segoe UI", system-ui, sans-serif;
+  min-height: 640px;
+}
+
+.dark {
+  --m-navy: #e8eefc;
+  --m-blue: #44c8f5;
+  --m-blue-dark: #8ad9f8;
+  --m-blue-tint: #12305c;
+  --m-bg: #0d1424;
+  --m-border: #27324a;
+  --m-text-soft: #9aa8c2;
+
+  --m-surface: #161f33;
+  --m-surface-2: #1e293f;
+  --m-text: #e8eefc;
+  --m-text-2: #c3cee3;
+  --m-input-bg: #101a2c;
+  --m-shadow: rgba(0, 0, 0, 0.5);
+  --m-tip-bg: #2a2413;
+  --m-tip-border: #4a3f1c;
+  --m-tip-title: #f5c964;
+  --m-tip-text: #e7cf95;
+  --m-fav-bg: rgba(22, 31, 51, 0.9);
+  --m-fav-color: #e8eefc;
+}
+.layout {
+  display: flex;
+  align-items: stretch;
+}
+.content {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 24px;
+}
+.heading {
+  margin: 0 0 16px 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--m-navy);
+}
+
+.hintBanner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 20px 24px 0;
+  padding: 12px 16px;
+  background: var(--m-blue-tint);
+  border: 1px solid var(--m-border);
+  border-radius: 12px;
+  font-size: 13px;
+  color: var(--m-navy);
+  line-height: 1.5;
+}
+.hintClose {
+  margin-left: auto;
+  border: none;
+  background: none;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--m-text-soft);
+  cursor: pointer;
+  flex-shrink: 0;
+  &:hover {
+    color: var(--m-navy);
+  }
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.filterChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--m-blue);
+  background: var(--m-blue-tint);
+  color: var(--m-navy);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.chipX {
+  font-size: 10px;
+  opacity: 0.7;
+}
+.filterChip:hover .chipX {
+  opacity: 1;
+}
+.clearAll {
+  border: none;
+  background: none;
+  color: var(--m-text-soft);
+  font-size: 12px;
+  cursor: pointer;
+  text-decoration: underline;
+  &:hover {
+    color: var(--m-blue);
+  }
+}
+.sort {
+  border: 1px solid var(--m-border);
+  border-radius: 8px;
+  padding: 7px 10px;
+  font-size: 13px;
+  background: #fff;
+  color: var(--m-navy);
+  cursor: pointer;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 20px;
+}
+.empty {
+  color: var(--m-text-soft);
+  font-size: 14px;
+  max-width: 480px;
+  margin: 8px 0;
+}

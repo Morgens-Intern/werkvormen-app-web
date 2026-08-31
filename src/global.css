@@ -1,0 +1,27 @@
+/* Globale reset voor de standalone webversie.
+   Alle kleuren/typografie zitten in Werkvormen.module.scss (CSS-variabelen). */
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: #f5fafe;
+  font-family: Calibri, "Segoe UI", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* De hoofdcontainer van de app vult het volledige scherm,
+   zodat de achtergrondkleur (ook in dark mode) doorloopt. */
+#root > section {
+  min-height: 100vh;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}

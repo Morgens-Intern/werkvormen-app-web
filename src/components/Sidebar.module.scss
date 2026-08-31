@@ -1,0 +1,88 @@
+.sidebar {
+  width: 260px;
+  flex-shrink: 0;
+  background: var(--m-surface);
+  border-right: 1px solid var(--m-border);
+  padding: 20px 16px;
+  box-sizing: border-box;
+}
+.headerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.filtersLabel {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--m-text-soft);
+}
+.clear {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--m-text-soft);
+  &:hover {
+    color: var(--m-blue);
+  }
+}
+.groupTitle {
+  margin: 18px 0 8px 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--m-text-soft);
+}
+.options {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--m-navy);
+  padding: 6px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  &:hover {
+    background: var(--m-surface-2);
+  }
+  input {
+    accent-color: var(--m-blue);
+    width: 15px;
+    height: 15px;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+}
+.pills {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pill {
+  text-align: left;
+  font-size: 12px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--m-border);
+  background: var(--m-surface);
+  color: var(--m-navy);
+  cursor: pointer;
+  &:hover {
+    border-color: var(--m-blue);
+  }
+}
+.pillActive {
+  background: var(--m-blue-tint);
+  border-color: var(--m-blue);
+  color: var(--m-navy);
+  font-weight: 600;
+}
