@@ -1,0 +1,170 @@
+// Eigen kleurenset: het inlogscherm staat buiten de .werkvormen-container waar
+// de huisstijlvariabelen normaal gedefinieerd zijn. Zelfde waarden uit de
+// huisstijlkaart, zodat het inlogscherm en de app op elkaar aansluiten.
+.auth {
+  --a-navy: #0c1a55;
+  --a-blue: #44c8f5;
+  --a-tint: #e1f3fd;
+  --a-bg: #f5fafe;
+  --a-surface: #ffffff;
+  --a-text: #0c1a55;
+  --a-text-2: #475569;
+  --a-border: #dbe6f0;
+  --a-error-bg: #fef2f2;
+  --a-error-text: #991b1b;
+  --a-ok-bg: #f0fdf4;
+  --a-ok-text: #166534;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 24px;
+  background: var(--a-bg);
+  color: var(--a-text);
+  font-family: Calibri, "Segoe UI", system-ui, sans-serif;
+}
+
+.dark {
+  --a-navy: #e8eefc;
+  --a-tint: #12305c;
+  --a-bg: #0d1424;
+  --a-surface: #161f33;
+  --a-text: #e8eefc;
+  --a-text-2: #9aa8c2;
+  --a-border: #27324a;
+  --a-error-bg: #3b1d1d;
+  --a-error-text: #fca5a5;
+  --a-ok-bg: #14321f;
+  --a-ok-text: #86efac;
+}
+
+.card {
+  width: 100%;
+  max-width: 420px;
+  background: var(--a-surface);
+  border: 1px solid var(--a-border);
+  border-radius: 12px;
+  padding: 32px;
+  box-shadow: 0 6px 24px rgba(21, 30, 70, 0.1);
+}
+
+.logo {
+  margin-bottom: 20px;
+}
+
+.titel {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 24px;
+  margin: 0 0 6px;
+  color: var(--a-navy);
+}
+
+.subtitel {
+  margin: 0 0 24px;
+  color: var(--a-text-2);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.veld {
+  margin-bottom: 16px;
+}
+
+.label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: var(--a-text);
+}
+
+.input {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 15px;
+  font-family: inherit;
+  color: var(--a-text);
+  background: var(--a-surface);
+  border: 1px solid var(--a-border);
+  border-radius: 8px;
+
+  &:focus {
+    outline: none;
+    border-color: var(--a-blue);
+    box-shadow: 0 0 0 3px rgba(68, 200, 245, 0.25);
+  }
+}
+
+.hint {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--a-text-2);
+}
+
+.knop {
+  width: 100%;
+  padding: 11px 16px;
+  font-size: 15px;
+  font-family: inherit;
+  font-weight: 600;
+  color: #ffffff;
+  background: var(--a-navy);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: #16266f;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.schakel {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--a-border);
+  font-size: 14px;
+  color: var(--a-text-2);
+  text-align: center;
+}
+
+.link {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: var(--a-navy);
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.melding {
+  padding: 12px 14px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+  margin-bottom: 18px;
+}
+
+.fout {
+  background: var(--a-error-bg);
+  color: var(--a-error-text);
+}
+
+.gelukt {
+  background: var(--a-ok-bg);
+  color: var(--a-ok-text);
+}
+
+.accent {
+  height: 3px;
+  background: var(--a-blue);
+  border-radius: 2px;
+  margin-bottom: 24px;
+}

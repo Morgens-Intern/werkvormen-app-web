@@ -1,7 +1,7 @@
 import * as React from "react";
 import { createRoot } from "react-dom/client";
 import "./global.css";
-import Werkvormen from "./components/Werkvormen";
+import App from "./App";
 
 const container = document.getElementById("root");
 if (!container) {
@@ -10,11 +10,6 @@ if (!container) {
 
 createRoot(container).render(
   <React.StrictMode>
-    <Werkvormen
-      description="Morgens Werkvormen"
-      isDarkTheme={false}
-      environmentMessage=""
-      userDisplayName="Gast"
-    />
+    <App />
   </React.StrictMode>
 );

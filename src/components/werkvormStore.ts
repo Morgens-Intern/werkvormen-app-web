@@ -1,48 +1,33 @@
-// Lokale opslaglaag voor werkvormen en voorstellen.
-// Wordt bij de eerste keer geseed met de gecureerde mockData. Zodra een
-// beheerder iets toevoegt/bewerkt/verwijdert, wordt de volledige lijst lokaal
-// bewaard. Deze laag vervangen we later door SharePoint (PnPjs).
+// Opslaglaag.
+//
+// De werkvormen komen RECHTSTREEKS uit de gecureerde bronlijst in
+// src/data/mockData.ts — ze worden bewust niet in localStorage bewaard.
+// Daardoor krijgt iedereen bij de eerstvolgende keer laden automatisch de
+// nieuwste lijst: bestand aanpassen, pushen, klaar. Zou je ze wél cachen, dan
+// blijft een collega die de app eerder gebruikte voor altijd op de oude versie
+// hangen zonder dat iemand doorheeft waarom.
+//
+// In localStorage staat alleen wat persoonlijk is: favorieten, bouwplannen,
+// thema en of de tip is weggeklikt.
 
 import { Werkvorm } from "../models/types";
-import { ISuggestion } from "../models/suggestion";
 import { mockWerkvormen } from "../data/mockData";
 
-const WV_KEY = "mw_werkvormen_v2";
-const SUG_KEY = "mw_suggestions_v1";
+// Sleutels uit een eerdere versie, toen beheerders werkvormen lokaal konden
+// bewerken. Die kopie zou de bronlijst nu overschaduwen, dus ruimen we hem op.
+const VEROUDERDE_SLEUTELS = ["mw_werkvormen_v2", "mw_suggestions_v1", "mw_posts_v1"];
+
+function ruimVerouderdeOpslagOp(): void {
+  try {
+    VEROUDERDE_SLEUTELS.forEach((k) => localStorage.removeItem(k));
+  } catch {
+    /* negeren: privémodus of opslag vol */
+  }
+}
 
 export function loadWerkvormen(): Werkvorm[] {
-  try {
-    const raw = localStorage.getItem(WV_KEY);
-    if (raw) return JSON.parse(raw) as Werkvorm[];
-  } catch {
-    /* negeren */
-  }
+  ruimVerouderdeOpslagOp();
   return mockWerkvormen.slice();
-}
-
-export function saveWerkvormen(list: Werkvorm[]): void {
-  try {
-    localStorage.setItem(WV_KEY, JSON.stringify(list));
-  } catch {
-    /* negeren */
-  }
-}
-
-export function loadSuggestions(): ISuggestion[] {
-  try {
-    const raw = localStorage.getItem(SUG_KEY);
-    return raw ? (JSON.parse(raw) as ISuggestion[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-export function saveSuggestions(list: ISuggestion[]): void {
-  try {
-    localStorage.setItem(SUG_KEY, JSON.stringify(list));
-  } catch {
-    /* negeren */
-  }
 }
 
 export function newId(prefix: string): string {

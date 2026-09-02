@@ -2,25 +2,19 @@ import * as React from "react";
 import styles from "./Werkvormen.module.scss";
 import type { IWerkvormenProps } from "./IWerkvormenProps";
 import { Categorie, Fase, Setting, Werkvorm } from "../models/types";
-import { ISuggestion } from "../models/suggestion";
-import {
-  loadWerkvormen,
-  saveWerkvormen,
-  loadSuggestions,
-  saveSuggestions,
-  newId,
-} from "./werkvormStore";
+import { loadWerkvormen, newId } from "./werkvormStore";
 import WerkvormCard from "./WerkvormCard";
 import WerkvormDetail from "./WerkvormDetail";
 import WerkvormForm from "./WerkvormForm";
 import TopBar from "./TopBar";
 import Sidebar from "./Sidebar";
 import BouwplanBuilder from "./BouwplanBuilder";
-import AdminView from "./AdminView";
-import InspiratieView from "./InspiratieView";
 
 const FAVORITES_KEY = "mw_favorites";
-const ADMIN_PASSWORD = "MorgensAdmin2026";
+
+// Adres waar voorstellen voor nieuwe werkvormen naartoe gaan. De app heeft geen
+// server, dus een voorstel gaat per mail naar de beheerder van de bibliotheek.
+const BEHEERDER_MAIL = "munzur.atak@morgens.nl";
 
 const DUUR_BOUNDS = [
   [0, 10],
@@ -75,10 +69,9 @@ interface IEditor {
 }
 
 const Werkvormen: React.FC<IWerkvormenProps> = (props) => {
+  const { isDark, onToggleDark } = props;
   const [activeView, setActiveView] = React.useState("home");
-  const [werkvormen, setWerkvormen] = React.useState<Werkvorm[]>(loadWerkvormen);
-  const [suggestions, setSuggestions] = React.useState<ISuggestion[]>(loadSuggestions);
-  const [isAdmin, setIsAdmin] = React.useState(false);
+  const [werkvormen] = React.useState<Werkvorm[]>(loadWerkvormen);
   const [editor, setEditor] = React.useState<IEditor | null>(null);
 
   const [search, setSearch] = React.useState("");
@@ -92,26 +85,6 @@ const Werkvormen: React.FC<IWerkvormenProps> = (props) => {
   const [selected, setSelected] = React.useState<Werkvorm | null>(null);
   const [favorites, setFavorites] = React.useState<string[]>(loadFavorites);
   const [showFavorites, setShowFavorites] = React.useState(false);
-  const [isDark, setIsDark] = React.useState(() => {
-    try {
-      return localStorage.getItem("mw_theme") === "dark";
-    } catch {
-      return false;
-    }
-  });
-
-  const toggleDark = (): void => {
-    setIsDark((prev) => {
-      const next = !prev;
-      try {
-        localStorage.setItem("mw_theme", next ? "dark" : "light");
-      } catch {
-        /* negeren */
-      }
-      return next;
-    });
-  };
-
   const [showHint, setShowHint] = React.useState(() => {
     try {
       return localStorage.getItem("mw_hint_v1") !== "dismissed";
@@ -137,74 +110,64 @@ const Werkvormen: React.FC<IWerkvormenProps> = (props) => {
     }
   }, [favorites]);
 
-  // --- Werkvormen- en voorstellen-mutaties (persisteren lokaal) ---
-  const addWerkvorm = (w: Werkvorm): void =>
-    setWerkvormen((prev) => {
-      const list = [w, ...prev];
-      saveWerkvormen(list);
-      return list;
-    });
-  const updateWerkvorm = (w: Werkvorm): void =>
-    setWerkvormen((prev) => {
-      const list = prev.map((x) => (x.id === w.id ? w : x));
-      saveWerkvormen(list);
-      return list;
-    });
-  const deleteWerkvorm = (id: string): void =>
-    setWerkvormen((prev) => {
-      const list = prev.filter((x) => x.id !== id);
-      saveWerkvormen(list);
-      return list;
-    });
-  const addSuggestion = (s: ISuggestion): void =>
-    setSuggestions((prev) => {
-      const list = [s, ...prev];
-      saveSuggestions(list);
-      return list;
-    });
-  const removeSuggestion = (id: string): void =>
-    setSuggestions((prev) => {
-      const list = prev.filter((x) => x.id !== id);
-      saveSuggestions(list);
-      return list;
-    });
-
-  const toggleAdmin = (): void => {
-    if (isAdmin) {
-      setIsAdmin(false);
-      if (activeView === "beheer") setActiveView("home");
-      return;
-    }
-    const pw = window.prompt("Voer het beheerderswachtwoord in:");
-    if (pw === null) return;
-    if (pw === ADMIN_PASSWORD) setIsAdmin(true);
-    else window.alert("Onjuist wachtwoord.");
+  // --- Voorstel voor een nieuwe werkvorm ---
+  //
+  // Er is geen server en geen gedeelde database, dus een voorstel lokaal
+  // opslaan zou betekenen dat niemand het ooit ziet. In plaats daarvan zetten
+  // we het voorstel op het klembord en openen we een mail aan de beheerder.
+  //
+  // Waarom klembord en niet alles in de mailto-link: Outlook kapt een mailto
+  // rond de 2000 tekens af, en een werkvorm met stappenplan en tips zit daar
+  // zo overheen. Dan zou het voorstel stilletjes half aankomen.
+  const voorstelAlsTekst = (w: Werkvorm): string => {
+    const regels = [
+      `Titel: ${w.title}`,
+      `Categorie: ${(w.category || []).join(", ")}`,
+      `Fase: ${(w.fase || []).join(", ")}`,
+      `Duur: ${w.duration} minuten`,
+      `Groepsgrootte: ${w.groupSizeMin}–${w.groupSizeMax === 9999 ? "onbeperkt" : w.groupSizeMax}`,
+      `Geschikt voor: ${(w.settings || []).join(", ")}`,
+      "",
+      `Doel: ${w.goal}`,
+      "",
+      `Beschrijving: ${w.description}`,
+      "",
+      "Stappenplan:",
+      ...(w.steps || []).map((st, i) => `${i + 1}. ${st}`),
+      "",
+      "Tips:",
+      ...(w.tips || []).map((t) => `- ${t}`),
+      "",
+      `Materialen: ${(w.materials || []).join(", ")}`,
+      `Tags: ${(w.tags || []).join(", ")}`,
+      w.extraLink ? `Meer informatie: ${w.extraLink}` : "",
+    ];
+    return regels.join("\n");
   };
 
   const onSaveForm = (w: Werkvorm): void => {
-    if (!editor) return;
     const wv: Werkvorm = w.id ? w : { ...w, id: newId("u") };
-    if (editor.mode === "propose") {
-      addSuggestion({
-        id: newId("s"),
-        submitter: props.userDisplayName || "Onbekend",
-        date: Date.now(),
-        werkvorm: wv,
-      });
-    } else if (editor.mode === "edit") {
-      updateWerkvorm(wv);
-    } else {
-      addWerkvorm(wv);
-      if (editor.suggestionId) removeSuggestion(editor.suggestionId);
-    }
-    setEditor(null);
-  };
+    const tekst = voorstelAlsTekst(wv);
+    const onderwerp = `Voorstel nieuwe werkvorm: ${wv.title}`;
 
-  const approveSuggestion = (id: string): void => {
-    const s = suggestions.filter((x) => x.id === id)[0];
-    if (!s) return;
-    addWerkvorm(s.werkvorm.id ? s.werkvorm : { ...s.werkvorm, id: newId("u") });
-    removeSuggestion(id);
+    const openMail = (geplakt: boolean): void => {
+      const body = geplakt
+        ? "Je voorstel staat op je klembord — plak het hieronder met Ctrl+V en verstuur.\n\n"
+        : tekst;
+      window.location.href =
+        `mailto:${BEHEERDER_MAIL}?subject=${encodeURIComponent(onderwerp)}` +
+        `&body=${encodeURIComponent(body)}`;
+      setEditor(null);
+    };
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(tekst).then(
+        () => openMail(true),
+        () => openMail(false)
+      );
+    } else {
+      openMail(false);
+    }
   };
 
   // --- Filters ---
@@ -333,10 +296,9 @@ const Werkvormen: React.FC<IWerkvormenProps> = (props) => {
         activeView={activeView}
         onNavigate={setActiveView}
         onPropose={() => setEditor({ mode: "propose", werkvorm: null })}
-        isAdmin={isAdmin}
-        onToggleAdmin={toggleAdmin}
         isDark={isDark}
-        onToggleDark={toggleDark}
+        onToggleDark={onToggleDark}
+        onSignOut={props.onSignOut}
       />
 
       {activeView === "home" && (
@@ -427,26 +389,14 @@ const Werkvormen: React.FC<IWerkvormenProps> = (props) => {
       )}
 
       {activeView === "bouwplannen" && (
-        <BouwplanBuilder werkvormen={werkvormen} onShowWerkvorm={setSelected} />
-      )}
-
-      {activeView === "inspiratie" && (
-        <InspiratieView
-          userDisplayName={props.userDisplayName}
-          werkvormen={werkvormen}
-          onShowWerkvorm={setSelected}
-        />
-      )}
-
-      {activeView === "beheer" && isAdmin && (
-        <AdminView
-          suggestions={suggestions}
-          werkvormenCount={werkvormen.length}
-          onApprove={approveSuggestion}
-          onEditApprove={(s) => setEditor({ mode: "new", werkvorm: s.werkvorm, suggestionId: s.id })}
-          onReject={(id) => removeSuggestion(id)}
-          onAddNew={() => setEditor({ mode: "new", werkvorm: null })}
-        />
+        <>
+          <p className={styles.opslagNotitie}>
+            Je bouwplannen worden in deze browser bewaard, niet op een server. Ze zijn dus
+            alleen op dit apparaat beschikbaar. Exporteer een bouwplan naar Word zodra het af
+            is — dat bestand kun je bewaren en delen.
+          </p>
+          <BouwplanBuilder werkvormen={werkvormen} onShowWerkvorm={setSelected} />
+        </>
       )}
 
       {selected && (
@@ -455,17 +405,6 @@ const Werkvormen: React.FC<IWerkvormenProps> = (props) => {
           onClose={() => setSelected(null)}
           isFav={favorites.indexOf(selected.id) >= 0}
           onToggleFav={() => toggleFavorite(selected.id)}
-          isAdmin={isAdmin}
-          onEdit={() => {
-            setEditor({ mode: "edit", werkvorm: selected });
-            setSelected(null);
-          }}
-          onDelete={() => {
-            if (window.confirm("Deze werkvorm verwijderen uit de bibliotheek?")) {
-              deleteWerkvorm(selected.id);
-              setSelected(null);
-            }
-          }}
         />
       )}
 

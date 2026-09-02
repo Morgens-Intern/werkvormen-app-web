@@ -12,10 +12,9 @@ export interface ITopBarProps {
   activeView: string;
   onNavigate: (view: string) => void;
   onPropose: () => void;
-  isAdmin: boolean;
-  onToggleAdmin: () => void;
   isDark: boolean;
   onToggleDark: () => void;
+  onSignOut: () => void;
 }
 
 const MorgensLogo: React.FC<{ dark?: boolean }> = ({ dark }) => {
@@ -49,10 +48,9 @@ const TopBar: React.FC<ITopBarProps> = ({
   activeView,
   onNavigate,
   onPropose,
-  isAdmin,
-  onToggleAdmin,
   isDark,
   onToggleDark,
+  onSignOut,
 }) => {
   const navClass = (view: string): string =>
     activeView === view ? `${styles.navItem} ${styles.navActive}` : styles.navItem;
@@ -72,17 +70,9 @@ const TopBar: React.FC<ITopBarProps> = ({
         <button type="button" className={navClass("bouwplannen")} onClick={() => onNavigate("bouwplannen")} title="Bouwplannen maken (sessieplanner)">
           Bouwplannen
         </button>
-        <button type="button" className={navClass("inspiratie")} onClick={() => onNavigate("inspiratie")} title="Ervaringen, tips en bouwplannen van collega's">
-          Inspiratie
-        </button>
         <button type="button" className={styles.navItem} onClick={onPropose} title="Stel een nieuwe werkvorm voor">
           Nieuwe werkvorm
         </button>
-        {isAdmin && (
-          <button type="button" className={navClass("beheer")} onClick={() => onNavigate("beheer")} title="Voorstellen beoordelen en werkvormen beheren">
-            Beheer
-          </button>
-        )}
       </nav>
       {activeView === "home" && (
         <div className={styles.searchWrap}>
@@ -107,11 +97,11 @@ const TopBar: React.FC<ITopBarProps> = ({
         </button>
         <button
           type="button"
-          className={isAdmin ? `${styles.adminToggle} ${styles.adminToggleOn}` : styles.adminToggle}
-          onClick={onToggleAdmin}
-          title={isAdmin ? "Beheer-modus uitschakelen" : "Beheer-modus inschakelen (wachtwoord vereist)"}
+          className={styles.adminToggle}
+          onClick={onSignOut}
+          title={`Ingelogd als ${userDisplayName} — klik om uit te loggen`}
         >
-          {isAdmin ? "Beheer aan" : "Beheer"}
+          Uitloggen
         </button>
         {activeView === "home" && (
           <button
