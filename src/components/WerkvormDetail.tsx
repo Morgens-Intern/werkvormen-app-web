@@ -3,7 +3,7 @@ import styles from "./WerkvormDetail.module.scss";
 import { Werkvorm } from "../models/types";
 import { getCategoryTheme } from "./categoryTheme";
 import CategoryVisual from "./CategoryVisual";
-import { getWerkvormImage } from "./werkvormImages";
+import { getWerkvormImage, getWerkvormImageBySlug } from "./werkvormImages";
 import {
   ClockIcon,
   UsersIcon,
@@ -32,7 +32,9 @@ const WerkvormDetail: React.FC<IWerkvormDetailProps> = ({
   onDelete,
 }) => {
   const theme = getCategoryTheme(werkvorm.category[0]);
-  const imageSrc = werkvorm.imageUrl || getWerkvormImage(werkvorm.title);
+  const imageSrc = werkvorm.imageUrl ||
+    getWerkvormImageBySlug(werkvorm.imageSlug) ||
+    getWerkvormImage(werkvorm.title);
   const groep = `${werkvorm.groupSizeMin} – ${werkvorm.groupSizeMax === 9999 ? "Onbeperkt" : werkvorm.groupSizeMax}`;
 
   return (

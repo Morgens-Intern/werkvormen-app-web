@@ -15,6 +15,7 @@ export interface ITopBarProps {
   isDark: boolean;
   onToggleDark: () => void;
   onSignOut: () => void;
+  isAdmin: boolean;
 }
 
 const MorgensLogo: React.FC<{ dark?: boolean }> = ({ dark }) => {
@@ -51,6 +52,7 @@ const TopBar: React.FC<ITopBarProps> = ({
   isDark,
   onToggleDark,
   onSignOut,
+  isAdmin,
 }) => {
   const navClass = (view: string): string =>
     activeView === view ? `${styles.navItem} ${styles.navActive}` : styles.navItem;
@@ -64,15 +66,20 @@ const TopBar: React.FC<ITopBarProps> = ({
         <button type="button" className={navClass("home")} onClick={() => onNavigate("home")} title="Werkvormenbibliotheek">
           Home
         </button>
-        <button type="button" className={styles.navItem} disabled title="Binnenkort">
-          AI Adviseur
-        </button>
         <button type="button" className={navClass("bouwplannen")} onClick={() => onNavigate("bouwplannen")} title="Bouwplannen maken (sessieplanner)">
           Bouwplannen
+        </button>
+        <button type="button" className={navClass("inspiratie")} onClick={() => onNavigate("inspiratie")} title="Ervaringen en tips van collega's">
+          Inspiratie
         </button>
         <button type="button" className={styles.navItem} onClick={onPropose} title="Stel een nieuwe werkvorm voor">
           Nieuwe werkvorm
         </button>
+        {isAdmin && (
+          <button type="button" className={navClass("beheer")} onClick={() => onNavigate("beheer")} title="Gebruikers en rollen beheren">
+            Beheer
+          </button>
+        )}
       </nav>
       {activeView === "home" && (
         <div className={styles.searchWrap}>

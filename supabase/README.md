@@ -4,7 +4,7 @@ Uitvoeren in het Supabase-dashboard onder **SQL Editor**, in deze volgorde.
 
 | # | Bestand | Wanneer |
 | --- | --- | --- |
-| 1 | `schema.sql` | eenmalig, bij het inrichten. Opnieuw draaien is veilig. |
+| 1 | `schema.sql` | eenmalig, bij het inrichten. Opnieuw draaien is veilig. Let op: dit bestand toont de béginsituatie; latere wijzigingen staan als migratie in Supabase. |
 | 2 | `seed.sql` | direct daarna. Vult de 34 werkvormen; doet niets als de tabel al gevuld is. |
 | 3 | `bootstrap-admin.sql` | pas nadat je jezelf in de app hebt geregistreerd. |
 
@@ -40,6 +40,22 @@ De domeincontrole zit in drie lagen:
 - **De bewaking slaat over als `auth.uid()` leeg is.** Dat is het geval vanuit de
   SQL-editor en met de service_role-sleutel. Die weg is al volledig bevoegd, en
   het is de enige manier om de eerste beheerder aan te wijzen.
+
+## Hoe wijzigingen worden bijgehouden
+
+`schema.sql` en `seed.sql` waren de eenmalige inrichting. Alles daarna is als
+**migratie** toegepast en staat vastgelegd in Supabase zelf (Database →
+Migrations). Dat is de bron van waarheid, niet dit mapje.
+
+De migraties tot nu toe:
+
+| Versie | Wat |
+| --- | --- |
+| `20260831131257` | profielen, werkvormen, voorstellen, rollen en toegangsregels |
+| `20260831135929` | functies afschermen, `search_path` vastzetten |
+| `20260902092712` | Inspiratie: berichten, reacties in threads, emoji-reacties |
+| `20260902094033` | `image_slug`: afbeelding losgekoppeld van de titel |
+| `20260902094841` | collega's kunnen elkaars naam zien (nodig voor de feed) |
 
 ## Al toegepast op het project
 

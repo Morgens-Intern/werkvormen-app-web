@@ -3,7 +3,7 @@ import styles from "./WerkvormCard.module.scss";
 import { Werkvorm } from "../models/types";
 import { getCategoryTheme } from "./categoryTheme";
 import CategoryVisual from "./CategoryVisual";
-import { getWerkvormImage } from "./werkvormImages";
+import { getWerkvormImage, getWerkvormImageBySlug } from "./werkvormImages";
 import { ClockIcon, UsersIcon, HeartIcon } from "./icons";
 
 export interface IWerkvormCardProps {
@@ -21,7 +21,9 @@ const WerkvormCard: React.FC<IWerkvormCardProps> = ({
 }) => {
   const [imgError, setImgError] = React.useState(false);
   const theme = getCategoryTheme(werkvorm.category[0]);
-  const imageSrc = werkvorm.imageUrl || getWerkvormImage(werkvorm.title);
+  const imageSrc = werkvorm.imageUrl ||
+    getWerkvormImageBySlug(werkvorm.imageSlug) ||
+    getWerkvormImage(werkvorm.title);
   const showImage = !!imageSrc && !imgError;
   const groep = `${werkvorm.groupSizeMin}–${werkvorm.groupSizeMax === 9999 ? "∞" : werkvorm.groupSizeMax}`;
 

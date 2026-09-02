@@ -19,6 +19,8 @@ export interface IWerkvormFormProps {
   initial: Werkvorm | null;
   titel: string;
   submitLabel: string;
+  /** Melding als het opslaan mislukte. Het formulier blijft dan openstaan. */
+  fout?: string | null;
   onSave: (w: Werkvorm) => void;
   onCancel: () => void;
 }
@@ -64,6 +66,7 @@ const WerkvormForm: React.FC<IWerkvormFormProps> = ({
   initial,
   titel,
   submitLabel,
+  fout,
   onSave,
   onCancel,
 }) => {
@@ -129,6 +132,10 @@ const WerkvormForm: React.FC<IWerkvormFormProps> = ({
       settings: settings.length ? (settings as Setting[]) : undefined,
       extraLink: extraLink.trim() ? extraLink.trim() : undefined,
       imageUrl: imageUrl.trim() ? imageUrl.trim() : undefined,
+      // De afbeeldingssleutel hoort niet in het formulier thuis, maar moet wel
+      // bewaard blijven — anders raakt een werkvorm bij het bewerken alsnog
+      // zijn afbeelding kwijt.
+      imageSlug: initial && initial.imageSlug ? initial.imageSlug : undefined,
     };
     onSave(w);
   };
@@ -256,6 +263,7 @@ const WerkvormForm: React.FC<IWerkvormFormProps> = ({
         </div>
 
         <div className={styles.footer}>
+          {fout && <p className={styles.formFout}>{fout}</p>}
           <button type="button" className={styles.cancel} onClick={onCancel}>
             Annuleren
           </button>

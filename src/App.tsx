@@ -2,6 +2,7 @@ import * as React from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase, haalProfielOp, Profiel } from "./lib/supabase";
 import AuthView, { AuthModus } from "./components/AuthView";
+import { ruimVerouderdeOpslagOp } from "./components/werkvormStore";
 import Werkvormen from "./components/Werkvormen";
 
 /**
@@ -35,6 +36,12 @@ const App: React.FC = () => {
       }
       return next;
     });
+  }, []);
+
+  React.useEffect(() => {
+    // Eenmalig: resten opruimen van toen werkvormen en inspiratie nog in de
+    // browser stonden. Zonder dit blijft die oude kopie ruimte innemen.
+    ruimVerouderdeOpslagOp();
   }, []);
 
   React.useEffect(() => {
@@ -133,6 +140,7 @@ const App: React.FC = () => {
 
   return (
     <Werkvormen
+      userId={profiel.id}
       userDisplayName={profiel.display_name || profiel.email}
       isAdmin={profiel.rol === "admin"}
       onSignOut={uitloggen}

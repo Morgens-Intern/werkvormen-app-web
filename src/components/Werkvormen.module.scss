@@ -162,3 +162,34 @@
   max-width: 480px;
   margin: 8px 0;
 }
+
+.opslagNotitie {
+  margin: 16px 24px 0;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: var(--m-blue-tint);
+  color: var(--m-navy);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.laadfout {
+  margin: 16px 24px 0;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: #fef2f2;
+  color: #991b1b;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.meldingSluit {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+  opacity: 0.8;
+}

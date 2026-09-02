@@ -55,6 +55,11 @@ export interface Werkvorm {
   steps: string[];
   tips: string[];
   imageUrl?: string;
+  /**
+   * Bestandsnaam (zonder extensie) van de gebundelde afbeelding. Staat los van
+   * de titel, zodat hernoemen de afbeelding niet laat verdwijnen.
+   */
+  imageSlug?: string;
   extraLink?: string;
   tags: string[];
   settings?: Setting[];

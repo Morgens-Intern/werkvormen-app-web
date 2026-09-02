@@ -1,6 +1,12 @@
 import * as React from "react";
 import styles from "./AuthView.module.scss";
-import { supabase, heeftToegestaanDomein, TOEGESTAAN_DOMEIN } from "../lib/supabase";
+import {
+  supabase,
+  heeftToegestaanDomein,
+  TOEGESTAAN_DOMEIN,
+  blijftIngelogd,
+  zetBlijftIngelogd,
+} from "../lib/supabase";
 
 export type AuthModus = "inloggen" | "registreren" | "vergeten" | "nieuwwachtwoord";
 
@@ -59,6 +65,7 @@ const AuthView: React.FC<IAuthViewProps> = ({ isDark, startModus }) => {
   const [email, setEmail] = React.useState("");
   const [wachtwoord, setWachtwoord] = React.useState("");
   const [naam, setNaam] = React.useState("");
+  const [ingelogdBlijven, setIngelogdBlijven] = React.useState(blijftIngelogd);
   const [bezig, setBezig] = React.useState(false);
   const [fout, setFout] = React.useState<string | null>(null);
   const [gelukt, setGelukt] = React.useState<string | null>(null);
@@ -82,6 +89,8 @@ const AuthView: React.FC<IAuthViewProps> = ({ isDark, startModus }) => {
     setBezig(true);
     try {
       if (modus === "inloggen") {
+        // Vastleggen vóór het inloggen: dit bepaalt waar de sessie belandt.
+        zetBlijftIngelogd(ingelogdBlijven);
         const { error } = await supabase.auth.signInWithPassword({
           email: email.trim(),
           password: wachtwoord,
@@ -218,6 +227,23 @@ const AuthView: React.FC<IAuthViewProps> = ({ isDark, startModus }) => {
               />
               {modus !== "inloggen" && <p className={styles.hint}>Minimaal 6 tekens.</p>}
             </div>
+          )}
+
+          {modus === "inloggen" && (
+            <label className={styles.checkbox}>
+              <input
+                type="checkbox"
+                checked={ingelogdBlijven}
+                onChange={(e) => setIngelogdBlijven(e.target.checked)}
+              />
+              <span>
+                Ingelogd blijven
+                <span className={styles.checkboxHint}>
+                  Zet dit uit op een gedeelde of geleende laptop — dan word je uitgelogd
+                  zodra je de browser sluit.
+                </span>
+              </span>
+            </label>
           )}
 
           <button type="submit" className={styles.knop} disabled={bezig}>

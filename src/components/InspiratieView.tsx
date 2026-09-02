@@ -1,281 +1,543 @@
 import * as React from "react";
 import styles from "./InspiratieView.module.scss";
-import { IPost, PostType } from "../models/post";
 import { Werkvorm } from "../models/types";
-import { IBouwplan } from "../models/bouwplan";
-import { HeartIcon } from "./icons";
-
-const POSTS_KEY = "mw_posts_v1";
-const PLANS_KEY = "mw_bouwplannen";
-const TYPES: PostType[] = ["Ervaring", "Tip", "Bouwplan"];
-
-function loadPosts(): IPost[] {
-  try {
-    const raw = localStorage.getItem(POSTS_KEY);
-    return raw ? (JSON.parse(raw) as IPost[]) : [];
-  } catch {
-    return [];
-  }
-}
-function savePosts(list: IPost[]): void {
-  try {
-    localStorage.setItem(POSTS_KEY, JSON.stringify(list));
-  } catch {
-    /* negeren */
-  }
-}
-function loadPlans(): IBouwplan[] {
-  try {
-    const raw = localStorage.getItem(PLANS_KEY);
-    return raw ? (JSON.parse(raw) as IBouwplan[]) : [];
-  } catch {
-    return [];
-  }
-}
-function fmtDate(ms: number): string {
-  return new Date(ms).toLocaleDateString("nl-NL", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
-}
+import {
+  haalFeed,
+  plaatsBericht,
+  verwijderBericht,
+  plaatsReactie,
+  verwijderReactie,
+  wisselEmoji,
+  EMOJIS,
+  Bericht,
+  Reactie,
+  BerichtType,
+} from "../lib/inspiratieApi";
 
 export interface IInspiratieViewProps {
+  userId: string;
   userDisplayName: string;
+  isAdmin: boolean;
   werkvormen: Werkvorm[];
   onShowWerkvorm: (w: Werkvorm) => void;
 }
 
+const TYPES: BerichtType[] = ["Ervaring", "Tip", "Bouwplan"];
+
+/** Relatieve tijd leest in een feed prettiger dan een datum. */
+function sinds(iso: string): string {
+  const min = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+  if (min < 1) return "net";
+  if (min < 60) return `${min} min geleden`;
+  const uur = Math.floor(min / 60);
+  if (uur < 24) return `${uur} uur geleden`;
+  const dag = Math.floor(uur / 24);
+  if (dag < 7) return dag === 1 ? "gisteren" : `${dag} dagen geleden`;
+  return new Date(iso).toLocaleDateString("nl-NL", { day: "numeric", month: "long", year: "numeric" });
+}
+
+function initialen(naam: string): string {
+  return naam
+    .split(/[\s.@]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((d) => d[0].toUpperCase())
+    .join("");
+}
+
+interface IEmojiBalkProps {
+  emojis: { emoji: string; aantal: number; ikOok: boolean }[];
+  onWissel: (emoji: string, staatAan: boolean) => void;
+}
+
+const EmojiBalk: React.FC<IEmojiBalkProps> = ({ emojis, onWissel }) => {
+  const [kiezerOpen, setKiezerOpen] = React.useState(false);
+  const gebruikt = emojis.map((e) => e.emoji);
+
+  return (
+    <div className={styles.emojiBalk}>
+      {emojis.map((e) => (
+        <button
+          key={e.emoji}
+          type="button"
+          className={e.ikOok ? `${styles.emojiPil} ${styles.emojiPilAan}` : styles.emojiPil}
+          onClick={() => onWissel(e.emoji, e.ikOok)}
+          title={e.ikOok ? "Klik om je reactie terug te nemen" : "Ook reageren"}
+        >
+          <span className={styles.emojiTeken}>{e.emoji}</span> {e.aantal}
+        </button>
+      ))}
+
+      {kiezerOpen ? (
+        <span className={styles.emojiKiezer}>
+          {EMOJIS.filter((e) => gebruikt.indexOf(e) < 0).map((e) => (
+            <button
+              key={e}
+              type="button"
+              className={styles.emojiKeuze}
+              onClick={() => {
+                onWissel(e, false);
+                setKiezerOpen(false);
+              }}
+              title={`Reageer met ${e}`}
+            >
+              {e}
+            </button>
+          ))}
+          <button type="button" className={styles.emojiToevoegen} onClick={() => setKiezerOpen(false)}>
+            ×
+          </button>
+        </span>
+      ) : (
+        <button
+          type="button"
+          className={styles.emojiToevoegen}
+          onClick={() => setKiezerOpen(true)}
+          title="Reageer met een emoji"
+        >
+          ☺+
+        </button>
+      )}
+    </div>
+  );
+};
+
+interface IReactieProps {
+  reactie: Reactie;
+  diepte: number;
+  userId: string;
+  isAdmin: boolean;
+  onAntwoord: (parentId: string, body: string) => Promise<void>;
+  onVerwijder: (id: string) => Promise<void>;
+  onEmoji: (commentId: string, emoji: string, staatAan: boolean) => Promise<void>;
+}
+
+const ReactieBlok: React.FC<IReactieProps> = ({
+  reactie,
+  diepte,
+  userId,
+  isAdmin,
+  onAntwoord,
+  onVerwijder,
+  onEmoji,
+}) => {
+  const [antwoordOpen, setAntwoordOpen] = React.useState(false);
+  const [tekst, setTekst] = React.useState("");
+  const [bezig, setBezig] = React.useState(false);
+  const magVerwijderen = reactie.auteurId === userId || isAdmin;
+
+  // Dieper dan drie niveaus inspringen wordt op een laptop onleesbaar; daarna
+  // lopen antwoorden gewoon door op hetzelfde niveau.
+  const inspringing = Math.min(diepte, 3);
+
+  const verstuur = async (): Promise<void> => {
+    if (!tekst.trim()) return;
+    setBezig(true);
+    try {
+      await onAntwoord(reactie.id, tekst.trim());
+      setTekst("");
+      setAntwoordOpen(false);
+    } finally {
+      setBezig(false);
+    }
+  };
+
+  return (
+    <div className={styles.reactie} style={{ marginLeft: inspringing * 22 }}>
+      <div className={styles.reactieKop}>
+        <span className={styles.avatarKlein}>{initialen(reactie.auteurNaam)}</span>
+        <strong className={styles.auteur}>{reactie.auteurNaam}</strong>
+        <span className={styles.tijd}>{sinds(reactie.createdAt)}</span>
+      </div>
+      <p className={styles.reactieTekst}>{reactie.body}</p>
+
+      <div className={styles.reactieVoet}>
+        <EmojiBalk
+          emojis={reactie.emojis}
+          onWissel={(e, aan) => void onEmoji(reactie.id, e, aan)}
+        />
+        <button type="button" className={styles.tekstKnop} onClick={() => setAntwoordOpen((v) => !v)}>
+          {antwoordOpen ? "Annuleren" : "Antwoorden"}
+        </button>
+        {magVerwijderen && (
+          <button
+            type="button"
+            className={styles.tekstKnop}
+            onClick={() => {
+              if (window.confirm("Deze reactie verwijderen?")) void onVerwijder(reactie.id);
+            }}
+          >
+            Verwijderen
+          </button>
+        )}
+      </div>
+
+      {antwoordOpen && (
+        <div className={styles.antwoordVak}>
+          <textarea
+            className={styles.textarea}
+            rows={2}
+            value={tekst}
+            onChange={(e) => setTekst(e.target.value)}
+            placeholder="Schrijf een antwoord…"
+          />
+          <button type="button" className={styles.knopKlein} disabled={bezig} onClick={() => void verstuur()}>
+            {bezig ? "Bezig…" : "Plaatsen"}
+          </button>
+        </div>
+      )}
+
+      {reactie.antwoorden.map((a) => (
+        <ReactieBlok
+          key={a.id}
+          reactie={a}
+          diepte={diepte + 1}
+          userId={userId}
+          isAdmin={isAdmin}
+          onAntwoord={onAntwoord}
+          onVerwijder={onVerwijder}
+          onEmoji={onEmoji}
+        />
+      ))}
+    </div>
+  );
+};
+
 const InspiratieView: React.FC<IInspiratieViewProps> = ({
+  userId,
   userDisplayName,
+  isAdmin,
   werkvormen,
   onShowWerkvorm,
 }) => {
-  const [posts, setPosts] = React.useState<IPost[]>(loadPosts);
-  const [filter, setFilter] = React.useState<string>("");
-  const [writing, setWriting] = React.useState(false);
+  const [feed, setFeed] = React.useState<Bericht[] | null>(null);
+  const [fout, setFout] = React.useState<string | null>(null);
+  const [filter, setFilter] = React.useState<BerichtType | "">("");
+  const [openThreads, setOpenThreads] = React.useState<string[]>([]);
 
-  const [type, setType] = React.useState<PostType>("Ervaring");
-  const [title, setTitle] = React.useState("");
-  const [body, setBody] = React.useState("");
-  const [linkedWv, setLinkedWv] = React.useState<string[]>([]);
-  const [linkedPlan, setLinkedPlan] = React.useState("");
-  const [error, setError] = React.useState("");
+  const [schrijfOpen, setSchrijfOpen] = React.useState(false);
+  const [nType, setNType] = React.useState<BerichtType>("Ervaring");
+  const [nTitel, setNTitel] = React.useState("");
+  const [nTekst, setNTekst] = React.useState("");
+  const [nWerkvormen, setNWerkvormen] = React.useState<string[]>([]);
+  const [bezig, setBezig] = React.useState(false);
 
-  const plans = React.useMemo(loadPlans, [writing]);
-
-  const persist = (list: IPost[]): void => {
-    setPosts(list);
-    savePosts(list);
-  };
-
-  const resetForm = (): void => {
-    setType("Ervaring");
-    setTitle("");
-    setBody("");
-    setLinkedWv([]);
-    setLinkedPlan("");
-    setError("");
-  };
-
-  const submit = (): void => {
-    if (!title.trim() || !body.trim()) {
-      setError("Vul een titel en een bericht in.");
-      return;
+  const laden = React.useCallback(async (): Promise<void> => {
+    setFout(null);
+    try {
+      setFeed(await haalFeed(userId));
+    } catch (e) {
+      setFout(e instanceof Error ? e.message : String(e));
+      setFeed([]);
     }
-    const plan = plans.filter((p) => p.id === linkedPlan)[0];
-    const post: IPost = {
-      id: "p-" + Math.random().toString(36).slice(2, 9),
-      type,
-      title: title.trim(),
-      body: body.trim(),
-      author: userDisplayName || "Onbekend",
-      date: Date.now(),
-      werkvormIds: linkedWv,
-      bouwplanId: linkedPlan || undefined,
-      bouwplanTitel: plan ? plan.bijeenkomst || "(zonder titel)" : undefined,
-      likes: 0,
-      likedByMe: false,
-    };
-    persist([post, ...posts]);
-    resetForm();
-    setWriting(false);
-  };
+  }, [userId]);
 
-  const toggleLike = (id: string): void =>
-    persist(
-      posts.map((p) =>
-        p.id === id
-          ? { ...p, likedByMe: !p.likedByMe, likes: p.likes + (p.likedByMe ? -1 : 1) }
-          : p,
-      ),
-    );
+  React.useEffect(() => {
+    void laden();
+  }, [laden]);
 
-  const remove = (id: string): void => {
-    if (window.confirm("Dit bericht verwijderen?")) {
-      persist(posts.filter((p) => p.id !== id));
+  const metFout = async (fn: () => Promise<void>): Promise<void> => {
+    try {
+      await fn();
+      await laden();
+    } catch (e) {
+      setFout(e instanceof Error ? e.message : String(e));
     }
   };
 
-  const toggleWv = (id: string): void =>
-    setLinkedWv((prev) => (prev.indexOf(id) >= 0 ? prev.filter((x) => x !== id) : [...prev, id]));
+  const plaats = async (): Promise<void> => {
+    if (!nTitel.trim()) return;
+    setBezig(true);
+    try {
+      await plaatsBericht(userId, {
+        type: nType,
+        title: nTitel.trim(),
+        body: nTekst.trim(),
+        werkvormIds: nWerkvormen,
+      });
+      setNTitel("");
+      setNTekst("");
+      setNWerkvormen([]);
+      setSchrijfOpen(false);
+      await laden();
+    } catch (e) {
+      setFout(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBezig(false);
+    }
+  };
 
-  const shown = filter ? posts.filter((p) => p.type === filter) : posts;
+  const zichtbaar = (feed || []).filter((b) => !filter || b.type === filter);
+  const werkvormOp = (id: string): Werkvorm | undefined =>
+    werkvormen.filter((w) => w.id === id)[0];
 
   return (
     <div className={styles.inspiratie}>
-      <div className={styles.headRow}>
+      <div className={styles.kop}>
         <div>
-          <h2 className={styles.title}>Inspiratie</h2>
+          <h2 className={styles.titel}>Inspiratie</h2>
           <p className={styles.sub}>
-            Deel je ervaringen, tips en bouwplannen met collega&#39;s.
+            Deel wat je hebt geprobeerd, wat werkte en wat niet. Collega&apos;s kunnen reageren.
           </p>
         </div>
-        <button type="button" className={styles.newBtn} onClick={() => setWriting(true)}>
-          + Bericht schrijven
+        <button type="button" className={styles.knop} onClick={() => setSchrijfOpen((v) => !v)}>
+          {schrijfOpen ? "Annuleren" : "Nieuw bericht"}
         </button>
       </div>
+
+      {fout && (
+        <p className={styles.fout}>
+          {fout}{" "}
+          <button type="button" className={styles.tekstKnop} onClick={() => void laden()}>
+            opnieuw proberen
+          </button>
+        </p>
+      )}
+
+      {schrijfOpen && (
+        <div className={styles.schrijfvak}>
+          <div className={styles.veldRij}>
+            <label className={styles.label}>
+              Type
+              <select
+                className={styles.select}
+                value={nType}
+                onChange={(e) => setNType(e.target.value as BerichtType)}
+              >
+                {TYPES.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          <input
+            className={styles.input}
+            type="text"
+            value={nTitel}
+            onChange={(e) => setNTitel(e.target.value)}
+            placeholder="Waar gaat het over?"
+            maxLength={160}
+          />
+          <textarea
+            className={styles.textarea}
+            rows={5}
+            value={nTekst}
+            onChange={(e) => setNTekst(e.target.value)}
+            placeholder="Vertel je verhaal — wat deed je, met welke groep, en wat leverde het op?"
+          />
+
+          <label className={styles.label}>
+            Werkvormen koppelen (optioneel)
+            <select
+              className={styles.select}
+              value=""
+              onChange={(e) => {
+                const id = e.target.value;
+                if (id && nWerkvormen.indexOf(id) < 0) setNWerkvormen((p) => [...p, id]);
+              }}
+            >
+              <option value="">Kies een werkvorm…</option>
+              {werkvormen
+                .filter((w) => nWerkvormen.indexOf(w.id) < 0)
+                .map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {w.title}
+                  </option>
+                ))}
+            </select>
+          </label>
+
+          {nWerkvormen.length > 0 && (
+            <div className={styles.chips}>
+              {nWerkvormen.map((id) => (
+                <button
+                  key={id}
+                  type="button"
+                  className={styles.chip}
+                  onClick={() => setNWerkvormen((p) => p.filter((x) => x !== id))}
+                  title="Koppeling verwijderen"
+                >
+                  {werkvormOp(id)?.title || "?"} ✕
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div className={styles.schrijfVoet}>
+            <span className={styles.tijd}>Je plaatst dit als {userDisplayName}</span>
+            <button
+              type="button"
+              className={styles.knop}
+              disabled={bezig || !nTitel.trim()}
+              onClick={() => void plaats()}
+            >
+              {bezig ? "Bezig…" : "Plaatsen"}
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className={styles.filters}>
         <button
           type="button"
-          className={filter === "" ? `${styles.filterChip} ${styles.filterActive}` : styles.filterChip}
+          className={filter === "" ? `${styles.filterChip} ${styles.filterAan}` : styles.filterChip}
           onClick={() => setFilter("")}
         >
-          Alles ({posts.length})
+          Alles
         </button>
         {TYPES.map((t) => (
           <button
             key={t}
             type="button"
-            className={filter === t ? `${styles.filterChip} ${styles.filterActive}` : styles.filterChip}
+            className={filter === t ? `${styles.filterChip} ${styles.filterAan}` : styles.filterChip}
             onClick={() => setFilter(t)}
           >
-            {t} ({posts.filter((p) => p.type === t).length})
+            {t}
           </button>
         ))}
       </div>
 
-      {writing && (
-        <div className={styles.editor}>
-          <div className={styles.editorRow}>
-            <label className={styles.field}>
-              <span>Type bericht</span>
-              <select value={type} onChange={(e) => setType(e.target.value as PostType)}>
-                {TYPES.map((t) => (
-                  <option key={t} value={t}>{t}</option>
-                ))}
-              </select>
-            </label>
-            <label className={`${styles.field} ${styles.grow}`}>
-              <span>Titel</span>
-              <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Waar gaat het over?" />
-            </label>
-          </div>
-
-          <label className={styles.field}>
-            <span>Je verhaal</span>
-            <textarea
-              className={styles.bodyInput}
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              placeholder="Wat heb je gedaan, wat werkte goed, wat zou je een volgende keer anders doen?"
-            />
-          </label>
-
-          {plans.length > 0 && (
-            <label className={styles.field}>
-              <span>Bouwplan koppelen (optioneel)</span>
-              <select value={linkedPlan} onChange={(e) => setLinkedPlan(e.target.value)}>
-                <option value="">Geen bouwplan</option>
-                {plans.map((p) => (
-                  <option key={p.id} value={p.id}>{p.bijeenkomst || "(zonder titel)"}</option>
-                ))}
-              </select>
-            </label>
-          )}
-
-          <div className={styles.field}>
-            <span>Werkvormen koppelen (optioneel)</span>
-            <div className={styles.wvPicker}>
-              {werkvormen.slice(0, 60).map((w) => (
-                <button
-                  key={w.id}
-                  type="button"
-                  className={linkedWv.indexOf(w.id) >= 0 ? `${styles.wvChip} ${styles.wvChipOn}` : styles.wvChip}
-                  onClick={() => toggleWv(w.id)}
-                >
-                  {w.title}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {error && <p className={styles.error}>{error}</p>}
-
-          <div className={styles.editorActions}>
-            <button type="button" className={styles.cancel} onClick={() => { resetForm(); setWriting(false); }}>
-              Annuleren
-            </button>
-            <button type="button" className={styles.publish} onClick={submit}>
-              Plaatsen
-            </button>
-          </div>
-        </div>
-      )}
-
-      {shown.length === 0 ? (
-        <p className={styles.empty}>
-          Nog geen berichten. Schrijf het eerste bericht en deel je ervaring met collega&#39;s.
+      {feed === null ? (
+        <p className={styles.leeg}>Bezig met laden…</p>
+      ) : zichtbaar.length === 0 ? (
+        <p className={styles.leeg}>
+          {filter
+            ? `Nog geen berichten van het type ${filter}.`
+            : "Nog geen berichten. Wees de eerste die iets deelt."}
         </p>
       ) : (
-        <div className={styles.list}>
-          {shown.map((p) => (
-            <article key={p.id} className={styles.post}>
-              <div className={styles.postHead}>
-                <span className={styles.typeTag}>{p.type}</span>
-                <h3 className={styles.postTitle}>{p.title}</h3>
-              </div>
-              <p className={styles.meta}>
-                {p.author} · {fmtDate(p.date)}
-              </p>
-              <p className={styles.body}>{p.body}</p>
+        <div className={styles.feed}>
+          {zichtbaar.map((b) => {
+            const threadOpen = openThreads.indexOf(b.id) >= 0;
+            const magVerwijderen = b.auteurId === userId || isAdmin;
+            return (
+              <article key={b.id} className={styles.bericht}>
+                <header className={styles.berichtKop}>
+                  <span className={styles.avatar}>{initialen(b.auteurNaam)}</span>
+                  <div className={styles.berichtMeta}>
+                    <strong className={styles.auteur}>{b.auteurNaam}</strong>
+                    <span className={styles.tijd}>{sinds(b.createdAt)}</span>
+                  </div>
+                  <span className={styles.typeBadge}>{b.type}</span>
+                </header>
 
-              {p.bouwplanTitel && (
-                <p className={styles.linkedPlan}>📋 Bouwplan: {p.bouwplanTitel}</p>
-              )}
+                <h3 className={styles.berichtTitel}>{b.title}</h3>
+                {b.body && <p className={styles.berichtTekst}>{b.body}</p>}
 
-              {p.werkvormIds.length > 0 && (
-                <div className={styles.linkedWv}>
-                  {p.werkvormIds.map((id) => {
-                    const w = werkvormen.filter((x) => x.id === id)[0];
-                    if (!w) return null;
-                    return (
-                      <button key={id} type="button" className={styles.wvLink} onClick={() => onShowWerkvorm(w)}>
-                        {w.title}
-                      </button>
-                    );
-                  })}
+                {b.werkvormIds.length > 0 && (
+                  <div className={styles.chips}>
+                    {b.werkvormIds.map((id) => {
+                      const w = werkvormOp(id);
+                      if (!w) return null;
+                      return (
+                        <button
+                          key={id}
+                          type="button"
+                          className={styles.chip}
+                          onClick={() => onShowWerkvorm(w)}
+                          title="Werkvorm bekijken"
+                        >
+                          {w.title}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <div className={styles.berichtVoet}>
+                  <EmojiBalk
+                    emojis={b.emojis}
+                    onWissel={(e, aan) =>
+                      void metFout(() => wisselEmoji(userId, { postId: b.id }, e, aan))
+                    }
+                  />
+                  <button
+                    type="button"
+                    className={styles.tekstKnop}
+                    onClick={() =>
+                      setOpenThreads((p) => (threadOpen ? p.filter((x) => x !== b.id) : [...p, b.id]))
+                    }
+                  >
+                    {b.aantalReacties === 0
+                      ? "Reageren"
+                      : `${b.aantalReacties} reactie${b.aantalReacties === 1 ? "" : "s"}`}
+                  </button>
+                  {magVerwijderen && (
+                    <button
+                      type="button"
+                      className={styles.tekstKnop}
+                      onClick={() => {
+                        if (window.confirm(`Bericht "${b.title}" verwijderen? Ook de reacties gaan weg.`)) {
+                          void metFout(() => verwijderBericht(b.id));
+                        }
+                      }}
+                    >
+                      Verwijderen
+                    </button>
+                  )}
                 </div>
-              )}
 
-              <div className={styles.postFooter}>
-                <button
-                  type="button"
-                  className={p.likedByMe ? `${styles.likeBtn} ${styles.likeOn}` : styles.likeBtn}
-                  onClick={() => toggleLike(p.id)}
-                >
-                  <HeartIcon size={15} filled={p.likedByMe} />
-                  {p.likes > 0 ? p.likes : ""} Nuttig
-                </button>
-                <button type="button" className={styles.delBtn} onClick={() => remove(p.id)}>
-                  Verwijderen
-                </button>
-              </div>
-            </article>
-          ))}
+                {threadOpen && (
+                  <div className={styles.thread}>
+                    {b.reacties.map((r) => (
+                      <ReactieBlok
+                        key={r.id}
+                        reactie={r}
+                        diepte={0}
+                        userId={userId}
+                        isAdmin={isAdmin}
+                        onAntwoord={(parentId, body) =>
+                          metFout(() => plaatsReactie(userId, b.id, body, parentId))
+                        }
+                        onVerwijder={(id) => metFout(() => verwijderReactie(id))}
+                        onEmoji={(commentId, emoji, aan) =>
+                          metFout(() => wisselEmoji(userId, { commentId }, emoji, aan))
+                        }
+                      />
+                    ))}
+                    <NieuweReactie
+                      onPlaats={(body) => metFout(() => plaatsReactie(userId, b.id, body, null))}
+                    />
+                  </div>
+                )}
+              </article>
+            );
+          })}
         </div>
       )}
+    </div>
+  );
+};
+
+const NieuweReactie: React.FC<{ onPlaats: (body: string) => Promise<void> }> = ({ onPlaats }) => {
+  const [tekst, setTekst] = React.useState("");
+  const [bezig, setBezig] = React.useState(false);
+  return (
+    <div className={styles.antwoordVak}>
+      <textarea
+        className={styles.textarea}
+        rows={2}
+        value={tekst}
+        onChange={(e) => setTekst(e.target.value)}
+        placeholder="Schrijf een reactie…"
+      />
+      <button
+        type="button"
+        className={styles.knopKlein}
+        disabled={bezig || !tekst.trim()}
+        onClick={() => {
+          setBezig(true);
+          void onPlaats(tekst.trim()).then(() => {
+            setTekst("");
+            setBezig(false);
+          });
+        }}
+      >
+        {bezig ? "Bezig…" : "Plaatsen"}
+      </button>
     </div>
   );
 };

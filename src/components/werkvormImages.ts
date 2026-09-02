@@ -34,3 +34,12 @@ Object.keys(modules).forEach((path) => {
 export function getWerkvormImage(title: string): string | undefined {
   return imageMap[slugify(title)];
 }
+
+/**
+ * Zoekt de afbeelding op de vaste sleutel uit de database in plaats van op de
+ * titel. Dit is de betrouwbare weg: hernoemt een beheerder een werkvorm, dan
+ * blijft de afbeelding gewoon staan.
+ */
+export function getWerkvormImageBySlug(slug?: string): string | undefined {
+  return slug ? imageMap[slug] : undefined;
+}

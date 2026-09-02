@@ -119,3 +119,42 @@
 .reject {
   color: #dc2626 !important;
 }
+
+.rol {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--m-surface-2);
+  color: var(--m-text-2);
+  white-space: nowrap;
+}
+
+.rolAdmin {
+  background: var(--m-blue-tint);
+  color: var(--m-navy);
+}
+
+.zelf {
+  display: inline-block;
+  margin-left: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--m-blue-tint);
+  color: var(--m-navy);
+  vertical-align: middle;
+}
+
+.foutmelding {
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: #fef2f2;
+  color: #991b1b;
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 0 0 18px;
+}

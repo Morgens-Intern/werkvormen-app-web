@@ -2,19 +2,23 @@ import * as React from "react";
 import styles from "./Werkvormen.module.scss";
 import type { IWerkvormenProps } from "./IWerkvormenProps";
 import { Categorie, Fase, Setting, Werkvorm } from "../models/types";
-import { loadWerkvormen, newId } from "./werkvormStore";
+import {
+  haalWerkvormen,
+  voegWerkvormToe,
+  werkWerkvormBij,
+  verwijderWerkvorm,
+  dienVoorstelIn,
+} from "../lib/werkvormenApi";
 import WerkvormCard from "./WerkvormCard";
 import WerkvormDetail from "./WerkvormDetail";
 import WerkvormForm from "./WerkvormForm";
 import TopBar from "./TopBar";
 import Sidebar from "./Sidebar";
 import BouwplanBuilder from "./BouwplanBuilder";
+import AdminView from "./AdminView";
+import InspiratieView from "./InspiratieView";
 
 const FAVORITES_KEY = "mw_favorites";
-
-// Adres waar voorstellen voor nieuwe werkvormen naartoe gaan. De app heeft geen
-// server, dus een voorstel gaat per mail naar de beheerder van de bibliotheek.
-const BEHEERDER_MAIL = "munzur.atak@morgens.nl";
 
 const DUUR_BOUNDS = [
   [0, 10],
@@ -71,8 +75,12 @@ interface IEditor {
 const Werkvormen: React.FC<IWerkvormenProps> = (props) => {
   const { isDark, onToggleDark } = props;
   const [activeView, setActiveView] = React.useState("home");
-  const [werkvormen] = React.useState<Werkvorm[]>(loadWerkvormen);
+  const [werkvormen, setWerkvormen] = React.useState<Werkvorm[]>([]);
+  const [wvLaden, setWvLaden] = React.useState(true);
+  const [wvFout, setWvFout] = React.useState<string | null>(null);
   const [editor, setEditor] = React.useState<IEditor | null>(null);
+  const [editorFout, setEditorFout] = React.useState<string | null>(null);
+  const [melding, setMelding] = React.useState<string | null>(null);
 
   const [search, setSearch] = React.useState("");
   const [categorie, setCategorie] = React.useState<string[]>([]);
@@ -110,64 +118,67 @@ const Werkvormen: React.FC<IWerkvormenProps> = (props) => {
     }
   }, [favorites]);
 
-  // --- Voorstel voor een nieuwe werkvorm ---
+  // --- Werkvormen uit de database ---
+  const herlaadWerkvormen = React.useCallback(async (): Promise<void> => {
+    setWvFout(null);
+    try {
+      setWerkvormen(await haalWerkvormen());
+    } catch (e) {
+      setWvFout(e instanceof Error ? e.message : String(e));
+    } finally {
+      setWvLaden(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    void herlaadWerkvormen();
+  }, [herlaadWerkvormen]);
+
+  // --- Opslaan vanuit het formulier ---
   //
-  // Er is geen server en geen gedeelde database, dus een voorstel lokaal
-  // opslaan zou betekenen dat niemand het ooit ziet. In plaats daarvan zetten
-  // we het voorstel op het klembord en openen we een mail aan de beheerder.
-  //
-  // Waarom klembord en niet alles in de mailto-link: Outlook kapt een mailto
-  // rond de 2000 tekens af, en een werkvorm met stappenplan en tips zit daar
-  // zo overheen. Dan zou het voorstel stilletjes half aankomen.
-  const voorstelAlsTekst = (w: Werkvorm): string => {
-    const regels = [
-      `Titel: ${w.title}`,
-      `Categorie: ${(w.category || []).join(", ")}`,
-      `Fase: ${(w.fase || []).join(", ")}`,
-      `Duur: ${w.duration} minuten`,
-      `Groepsgrootte: ${w.groupSizeMin}–${w.groupSizeMax === 9999 ? "onbeperkt" : w.groupSizeMax}`,
-      `Geschikt voor: ${(w.settings || []).join(", ")}`,
-      "",
-      `Doel: ${w.goal}`,
-      "",
-      `Beschrijving: ${w.description}`,
-      "",
-      "Stappenplan:",
-      ...(w.steps || []).map((st, i) => `${i + 1}. ${st}`),
-      "",
-      "Tips:",
-      ...(w.tips || []).map((t) => `- ${t}`),
-      "",
-      `Materialen: ${(w.materials || []).join(", ")}`,
-      `Tags: ${(w.tags || []).join(", ")}`,
-      w.extraLink ? `Meer informatie: ${w.extraLink}` : "",
-    ];
-    return regels.join("\n");
+  // Hetzelfde formulier dient drie doelen: een gebruiker die een werkvorm
+  // voorstelt, een beheerder die er een toevoegt, en een beheerder die er een
+  // bewerkt. Welke van de drie het is, staat in editor.mode.
+  const onSaveForm = (w: Werkvorm): void => {
+    if (!editor) return;
+    setEditorFout(null);
+
+    void (async () => {
+      try {
+        if (editor.mode === "propose") {
+          await dienVoorstelIn(w, props.userId);
+          setMelding(
+            "Je voorstel is verstuurd. Een beheerder bekijkt het en voegt het toe aan de bibliotheek."
+          );
+        } else if (editor.mode === "edit") {
+          await werkWerkvormBij(w);
+          await herlaadWerkvormen();
+          setMelding("De werkvorm is bijgewerkt.");
+        } else {
+          await voegWerkvormToe(w);
+          await herlaadWerkvormen();
+          setMelding("De werkvorm staat in de bibliotheek.");
+        }
+        setEditor(null);
+      } catch (e) {
+        // Bewust niet het formulier sluiten: dan is het ingevulde werk weg.
+        setEditorFout(e instanceof Error ? e.message : String(e));
+      }
+    })();
   };
 
-  const onSaveForm = (w: Werkvorm): void => {
-    const wv: Werkvorm = w.id ? w : { ...w, id: newId("u") };
-    const tekst = voorstelAlsTekst(wv);
-    const onderwerp = `Voorstel nieuwe werkvorm: ${wv.title}`;
-
-    const openMail = (geplakt: boolean): void => {
-      const body = geplakt
-        ? "Je voorstel staat op je klembord — plak het hieronder met Ctrl+V en verstuur.\n\n"
-        : tekst;
-      window.location.href =
-        `mailto:${BEHEERDER_MAIL}?subject=${encodeURIComponent(onderwerp)}` +
-        `&body=${encodeURIComponent(body)}`;
-      setEditor(null);
-    };
-
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(tekst).then(
-        () => openMail(true),
-        () => openMail(false)
-      );
-    } else {
-      openMail(false);
-    }
+  const opWerkvormVerwijderen = (w: Werkvorm): void => {
+    if (!window.confirm(`"${w.title}" definitief uit de bibliotheek verwijderen?`)) return;
+    void (async () => {
+      try {
+        await verwijderWerkvorm(w.id);
+        setSelected(null);
+        await herlaadWerkvormen();
+        setMelding(`"${w.title}" is verwijderd.`);
+      } catch (e) {
+        window.alert(e instanceof Error ? e.message : String(e));
+      }
+    })();
   };
 
   // --- Filters ---
@@ -295,11 +306,32 @@ const Werkvormen: React.FC<IWerkvormenProps> = (props) => {
         onToggleFavorites={() => setShowFavorites((v) => !v)}
         activeView={activeView}
         onNavigate={setActiveView}
-        onPropose={() => setEditor({ mode: "propose", werkvorm: null })}
+        onPropose={() =>
+          setEditor({ mode: props.isAdmin ? "new" : "propose", werkvorm: null })
+        }
         isDark={isDark}
         onToggleDark={onToggleDark}
         onSignOut={props.onSignOut}
+        isAdmin={props.isAdmin}
       />
+
+      {melding && (
+        <div className={styles.opslagNotitie} role="status">
+          {melding}{" "}
+          <button type="button" className={styles.meldingSluit} onClick={() => setMelding(null)}>
+            sluiten
+          </button>
+        </div>
+      )}
+
+      {wvFout && (
+        <div className={styles.laadfout} role="alert">
+          {wvFout}{" "}
+          <button type="button" className={styles.meldingSluit} onClick={() => void herlaadWerkvormen()}>
+            opnieuw proberen
+          </button>
+        </div>
+      )}
 
       {activeView === "home" && (
         <>
@@ -364,7 +396,9 @@ const Werkvormen: React.FC<IWerkvormenProps> = (props) => {
               </select>
             </div>
 
-            {displayed.length === 0 ? (
+            {wvLaden ? (
+              <p className={styles.empty}>Bezig met laden…</p>
+            ) : displayed.length === 0 ? (
               <p className={styles.empty}>
                 {showFavorites
                   ? "Je hebt nog geen favorieten. Klik op het hartje op een werkvorm om er een te bewaren."
@@ -399,12 +433,38 @@ const Werkvormen: React.FC<IWerkvormenProps> = (props) => {
         </>
       )}
 
+      {activeView === "inspiratie" && (
+        <InspiratieView
+          userId={props.userId}
+          userDisplayName={props.userDisplayName}
+          isAdmin={props.isAdmin}
+          werkvormen={werkvormen}
+          onShowWerkvorm={setSelected}
+        />
+      )}
+
+      {activeView === "beheer" && props.isAdmin && (
+        <AdminView
+          userId={props.userId}
+          werkvormenCount={werkvormen.length}
+          onWerkvormenGewijzigd={() => void herlaadWerkvormen()}
+          onAddNew={() => setEditor({ mode: "new", werkvorm: null })}
+          onEditVoorstel={(w) => setEditor({ mode: "new", werkvorm: w })}
+        />
+      )}
+
       {selected && (
         <WerkvormDetail
           werkvorm={selected}
           onClose={() => setSelected(null)}
           isFav={favorites.indexOf(selected.id) >= 0}
           onToggleFav={() => toggleFavorite(selected.id)}
+          isAdmin={props.isAdmin}
+          onEdit={() => {
+            setEditor({ mode: "edit", werkvorm: selected });
+            setSelected(null);
+          }}
+          onDelete={() => opWerkvormVerwijderen(selected)}
         />
       )}
 
@@ -413,8 +473,12 @@ const Werkvormen: React.FC<IWerkvormenProps> = (props) => {
           initial={editor.werkvorm}
           titel={formTitel}
           submitLabel={formLabel}
+          fout={editorFout}
           onSave={onSaveForm}
-          onCancel={() => setEditor(null)}
+          onCancel={() => {
+            setEditor(null);
+            setEditorFout(null);
+          }}
         />
       )}
     </section>
