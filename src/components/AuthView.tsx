@@ -6,6 +6,7 @@ import {
   TOEGESTAAN_DOMEIN,
   blijftIngelogd,
   zetBlijftIngelogd,
+  MIN_WACHTWOORD_LENGTE,
 } from "../lib/supabase";
 
 export type AuthModus = "inloggen" | "registreren" | "vergeten" | "nieuwwachtwoord";
@@ -49,7 +50,14 @@ function leesbareFout(bericht: string): string {
     return "Er bestaat al een account met dit adres. Log in, of gebruik 'Wachtwoord vergeten'.";
   }
   if (m.includes("password should be at least")) {
-    return "Kies een wachtwoord van minstens 6 tekens.";
+    // Het getal uit de melding van Supabase halen, zodat deze tekst klopt
+    // ook als de instelling in het dashboard verandert.
+    const gevonden = bericht.match(/(\d+)/);
+    const aantal = gevonden ? gevonden[1] : String(MIN_WACHTWOORD_LENGTE);
+    return `Kies een wachtwoord van minstens ${aantal} tekens.`;
+  }
+  if (m.includes("password") && (m.includes("requirements") || m.includes("characters"))) {
+    return "Dit wachtwoord voldoet niet aan de eisen. Gebruik letters én cijfers.";
   }
   if (m.includes("rate limit") || m.includes("too many requests") || m.includes("over_email_send_rate_limit")) {
     return "Er zijn net te veel mails verstuurd. Probeer het over een uur opnieuw, of vraag Munzur om je account met de hand te bevestigen.";
@@ -220,12 +228,16 @@ const AuthView: React.FC<IAuthViewProps> = ({ isDark, startModus }) => {
                 className={styles.input}
                 type="password"
                 required
-                minLength={6}
+                minLength={MIN_WACHTWOORD_LENGTE}
                 value={wachtwoord}
                 onChange={(e) => setWachtwoord(e.target.value)}
                 autoComplete={modus === "inloggen" ? "current-password" : "new-password"}
               />
-              {modus !== "inloggen" && <p className={styles.hint}>Minimaal 6 tekens.</p>}
+              {modus !== "inloggen" && (
+                <p className={styles.hint}>
+                  Minimaal {MIN_WACHTWOORD_LENGTE} tekens, met letters én cijfers.
+                </p>
+              )}
             </div>
           )}
 

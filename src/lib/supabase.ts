@@ -107,6 +107,16 @@ export const supabase = createClient(url, anonKey, {
 // de ontwikkelaarsconsole omzeil je hem. De derde laag is degene die telt.
 export const TOEGESTAAN_DOMEIN = "@morgens.nl";
 
+/**
+ * Minimale wachtwoordlengte die het formulier afdwingt.
+ *
+ * LET OP: dit moet gelijk zijn aan de instelling in Supabase onder
+ * Authentication -> Password settings. Staat die hoger dan dit getal, dan
+ * accepteert het formulier iets wat de server daarna weigert — en dat is een
+ * vervelende plek om erachter te komen.
+ */
+export const MIN_WACHTWOORD_LENGTE = 10;
+
 export function heeftToegestaanDomein(email: string): boolean {
   return email.trim().toLowerCase().endsWith(TOEGESTAAN_DOMEIN);
 }
