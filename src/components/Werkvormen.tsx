@@ -9,6 +9,7 @@ import {
   verwijderWerkvorm,
   dienVoorstelIn,
 } from "../lib/werkvormenApi";
+import { haalFavorieten, zetFavoriet, zetLokaleDataOver } from "../lib/persoonlijkApi";
 import WerkvormCard from "./WerkvormCard";
 import WerkvormDetail from "./WerkvormDetail";
 import WerkvormForm from "./WerkvormForm";
@@ -18,7 +19,7 @@ import BouwplanBuilder from "./BouwplanBuilder";
 import AdminView from "./AdminView";
 import InspiratieView from "./InspiratieView";
 
-const FAVORITES_KEY = "mw_favorites";
+
 
 const DUUR_BOUNDS = [
   [0, 10],
@@ -51,15 +52,6 @@ const CATEGORY_TO_DOELEN: Record<string, string[]> = {
   Overig: ["Anders"],
 };
 
-function loadFavorites(): string[] {
-  try {
-    const raw = localStorage.getItem(FAVORITES_KEY);
-    return raw ? (JSON.parse(raw) as string[]) : [];
-  } catch {
-    return [];
-  }
-}
-
 interface IChip {
   key: string;
   label: string;
@@ -91,7 +83,7 @@ const Werkvormen: React.FC<IWerkvormenProps> = (props) => {
   const [groep, setGroep] = React.useState<number | null>(null);
   const [sortBy, setSortBy] = React.useState("");
   const [selected, setSelected] = React.useState<Werkvorm | null>(null);
-  const [favorites, setFavorites] = React.useState<string[]>(loadFavorites);
+  const [favorites, setFavorites] = React.useState<string[]>([]);
   const [showFavorites, setShowFavorites] = React.useState(false);
   const [showHint, setShowHint] = React.useState(() => {
     try {
@@ -110,13 +102,20 @@ const Werkvormen: React.FC<IWerkvormenProps> = (props) => {
     }
   };
 
+  // Favorieten horen bij het account, niet bij de browser.
   React.useEffect(() => {
-    try {
-      localStorage.setItem(FAVORITES_KEY, JSON.stringify(favorites));
-    } catch {
-      /* negeren */
-    }
-  }, [favorites]);
+    let actief = true;
+    haalFavorieten(props.userId)
+      .then((f) => {
+        if (actief) setFavorites(f);
+      })
+      .catch(() => {
+        /* Niet fataal: zonder favorieten werkt de bibliotheek gewoon. */
+      });
+    return () => {
+      actief = false;
+    };
+  }, [props.userId]);
 
   // --- Werkvormen uit de database ---
   const herlaadWerkvormen = React.useCallback(async (): Promise<void> => {
@@ -133,6 +132,44 @@ const Werkvormen: React.FC<IWerkvormenProps> = (props) => {
   React.useEffect(() => {
     void herlaadWerkvormen();
   }, [herlaadWerkvormen]);
+
+  // Eenmalig: bouwplannen en favorieten die nog in de browser staan verhuizen
+  // naar het account. Draait alleen als er aan de databasekant nog niets staat,
+  // dus dit kan geen duplicaten opleveren.
+  React.useEffect(() => {
+    if (wvLaden || werkvormen.length === 0) return;
+    let actief = true;
+    zetLokaleDataOver(
+      props.userId,
+      werkvormen.map((w) => w.id)
+    )
+      .then((r) => {
+        if (!actief || (r.bouwplannen === 0 && r.favorieten === 0)) return;
+        const delen: string[] = [];
+        if (r.bouwplannen > 0) {
+          delen.push(`${r.bouwplannen} bouwplan${r.bouwplannen === 1 ? "" : "nen"}`);
+        }
+        if (r.favorieten > 0) {
+          delen.push(`${r.favorieten} favoriet${r.favorieten === 1 ? "" : "en"}`);
+        }
+        setMelding(
+          `${delen.join(" en ")} uit deze browser ${
+            delen.length > 1 ? "zijn" : "is"
+          } overgezet naar je account. Je vindt ze nu op elk apparaat terug.`
+        );
+        void haalFavorieten(props.userId).then((f) => {
+          if (actief) setFavorites(f);
+        });
+      })
+      .catch(() => {
+        /* Overzetten is meegenomen, geen reden om de app te blokkeren. */
+      });
+    return () => {
+      actief = false;
+    };
+    // Bewust alleen op de laadstatus: dit mag precies één keer draaien.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wvLaden]);
 
   // --- Opslaan vanuit het formulier ---
   //
@@ -185,7 +222,18 @@ const Werkvormen: React.FC<IWerkvormenProps> = (props) => {
   const toggle = (list: string[], val: string): string[] =>
     list.indexOf(val) >= 0 ? list.filter((x) => x !== val) : [...list, val];
 
-  const toggleFavorite = (id: string): void => setFavorites((prev) => toggle(prev, id));
+  const toggleFavorite = (id: string): void => {
+    const wordtFavoriet = favorites.indexOf(id) < 0;
+    // Meteen in het scherm bijwerken; het hartje moet niet wachten op de server.
+    setFavorites((prev) => toggle(prev, id));
+    void zetFavoriet(props.userId, id, wordtFavoriet).catch((e) => {
+      // Mislukt het toch, dan draaien we het terug in plaats van te doen alsof.
+      setFavorites((prev) => toggle(prev, id));
+      setMelding(
+        `Favoriet niet opgeslagen: ${e instanceof Error ? e.message : String(e)}`
+      );
+    });
+  };
 
   const clearFilters = (): void => {
     setSearch("");
@@ -429,7 +477,11 @@ const Werkvormen: React.FC<IWerkvormenProps> = (props) => {
             alleen op dit apparaat beschikbaar. Exporteer een bouwplan naar Word zodra het af
             is — dat bestand kun je bewaren en delen.
           </p>
-          <BouwplanBuilder werkvormen={werkvormen} onShowWerkvorm={setSelected} />
+          <BouwplanBuilder
+            userId={props.userId}
+            werkvormen={werkvormen}
+            onShowWerkvorm={setSelected}
+          />
         </>
       )}
 

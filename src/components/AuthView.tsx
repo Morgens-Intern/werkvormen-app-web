@@ -228,7 +228,11 @@ const AuthView: React.FC<IAuthViewProps> = ({ isDark, startModus }) => {
                 className={styles.input}
                 type="password"
                 required
-                minLength={MIN_WACHTWOORD_LENGTE}
+                // Een minimumlengte geldt alleen als je een NIEUW wachtwoord
+                // kiest. Bij inloggen typ je een bestaand wachtwoord in, en dat
+                // kan ouder zijn dan de huidige eis — dan zou de browser het
+                // formulier blokkeren en kom je nooit meer binnen.
+                minLength={modus === "inloggen" ? undefined : MIN_WACHTWOORD_LENGTE}
                 value={wachtwoord}
                 onChange={(e) => setWachtwoord(e.target.value)}
                 autoComplete={modus === "inloggen" ? "current-password" : "new-password"}

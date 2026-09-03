@@ -12,24 +12,11 @@ import {
 import { exportBouwplanToWord } from "./bouwplanExport";
 import { getCategoryTheme } from "./categoryTheme";
 import BouwplanPreview from "./BouwplanPreview";
-
-const STORAGE_KEY = "mw_bouwplannen";
-
-function loadPlans(): IBouwplan[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as IBouwplan[]) : [];
-  } catch {
-    return [];
-  }
-}
-function persistPlans(plans: IBouwplan[]): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(plans));
-  } catch {
-    /* negeren */
-  }
-}
+import {
+  haalBouwplannen,
+  bewaarBouwplan,
+  verwijderBouwplan,
+} from "../lib/persoonlijkApi";
 
 function pad2(n: number): string {
   return n < 10 ? "0" + n : "" + n;
@@ -80,22 +67,40 @@ function splitItems(s: string): string[] {
 export interface IBouwplanBuilderProps {
   werkvormen: Werkvorm[];
   onShowWerkvorm?: (w: Werkvorm) => void;
+  /** Bouwplannen zijn persoonlijk: ze horen bij één account. */
+  userId: string;
 }
 
 const BouwplanBuilder: React.FC<IBouwplanBuilderProps> = ({
+  userId,
   werkvormen,
   onShowWerkvorm,
 }) => {
   const [tab, setTab] = React.useState<"nieuw" | "opgeslagen">("nieuw");
   const [plan, setPlan] = React.useState<IBouwplan>(emptyBouwplan);
-  const [plans, setPlans] = React.useState<IBouwplan[]>(loadPlans);
+  const [plans, setPlans] = React.useState<IBouwplan[]>([]);
   const [savedMsg, setSavedMsg] = React.useState("");
+  const [fout, setFout] = React.useState<string | null>(null);
+  const [bezig, setBezig] = React.useState(false);
   const [dragId, setDragId] = React.useState<string | null>(null);
   const [showPreview, setShowPreview] = React.useState(false);
 
-  const persist = (list: IBouwplan[]): void => {
-    setPlans(list);
-    persistPlans(list);
+  const herlaad = React.useCallback(async (): Promise<void> => {
+    try {
+      setPlans(await haalBouwplannen(userId));
+      setFout(null);
+    } catch (e) {
+      setFout(e instanceof Error ? e.message : String(e));
+    }
+  }, [userId]);
+
+  React.useEffect(() => {
+    void herlaad();
+  }, [herlaad]);
+
+  const melding = (tekst: string): void => {
+    setSavedMsg(tekst);
+    window.setTimeout(() => setSavedMsg(""), 3000);
   };
 
   const setField = (
@@ -203,15 +208,23 @@ const BouwplanBuilder: React.FC<IBouwplanBuilderProps> = ({
     setTab("nieuw");
   };
   const opslaan = (): void => {
-    const updated: IBouwplan = { ...plan, updatedAt: Date.now() };
-    const exists = plans.some((x) => x.id === updated.id);
-    const list = exists
-      ? plans.map((x) => (x.id === updated.id ? updated : x))
-      : [updated, ...plans];
-    persist(list);
-    setPlan(updated);
-    setSavedMsg("Bouwplan opgeslagen.");
-    window.setTimeout(() => setSavedMsg(""), 3000);
+    setBezig(true);
+    setFout(null);
+    void (async () => {
+      try {
+        // De database geeft het opgeslagen plan terug, inclusief het echte id.
+        // Dat zetten we terug in de bewerkweergave, zodat een tweede keer
+        // opslaan bijwerkt in plaats van een tweede kopie aanmaakt.
+        const bewaard = await bewaarBouwplan(userId, plan);
+        setPlan(bewaard);
+        await herlaad();
+        melding("Bouwplan opgeslagen.");
+      } catch (e) {
+        setFout(e instanceof Error ? e.message : String(e));
+      } finally {
+        setBezig(false);
+      }
+    })();
   };
   const openPlan = (planId: string): void => {
     const pl = plans.filter((x) => x.id === planId)[0];
@@ -225,16 +238,33 @@ const BouwplanBuilder: React.FC<IBouwplanBuilderProps> = ({
     if (!pl) return;
     const copy: IBouwplan = {
       ...pl,
+      // Geen UUID: zo weet de opslaglaag dat dit een nieuw plan is.
       id: Math.random().toString(36).slice(2, 10),
       bijeenkomst: (pl.bijeenkomst || "Bouwplan") + " (kopie)",
       updatedAt: Date.now(),
     };
-    persist([copy, ...plans]);
+    void (async () => {
+      try {
+        await bewaarBouwplan(userId, copy);
+        await herlaad();
+        melding("Kopie aangemaakt.");
+      } catch (e) {
+        setFout(e instanceof Error ? e.message : String(e));
+      }
+    })();
   };
   const delPlan = (planId: string): void => {
-    if (window.confirm("Dit bouwplan verwijderen? Dit kan niet ongedaan worden gemaakt.")) {
-      persist(plans.filter((x) => x.id !== planId));
-    }
+    if (!window.confirm("Dit bouwplan verwijderen? Dit kan niet ongedaan worden gemaakt.")) return;
+    void (async () => {
+      try {
+        await verwijderBouwplan(planId);
+        if (plan.id === planId) setPlan(emptyBouwplan());
+        await herlaad();
+        melding("Bouwplan verwijderd.");
+      } catch (e) {
+        setFout(e instanceof Error ? e.message : String(e));
+      }
+    })();
   };
 
   const exporteer = (): void => {
@@ -493,6 +523,8 @@ const BouwplanBuilder: React.FC<IBouwplanBuilderProps> = ({
             <button type="button" className={styles.exportBtn} onClick={() => setShowPreview(true)}>Voorbeeld</button>
             <button type="button" className={styles.exportBtn} onClick={exporteer}>Exporteren naar Word</button>
             {savedMsg && <span className={styles.savedMsg}>{savedMsg}</span>}
+            {bezig && <span className={styles.savedMsg}>Bezig met opslaan…</span>}
+            {fout && <span className={styles.opslagFout}>{fout}</span>}
           </div>
         </div>
       ) : (
