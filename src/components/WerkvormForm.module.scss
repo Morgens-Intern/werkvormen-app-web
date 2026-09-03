@@ -192,3 +192,21 @@
   font-size: 14px;
   line-height: 1.45;
 }
+
+.uploadBezig {
+  font-size: 13px;
+  color: var(--m-text-soft);
+}
+
+.afbeeldingWeg {
+  background: none;
+  border: none;
+  padding: 2px 4px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--m-text-soft);
+  text-decoration: underline;
+  cursor: pointer;
+
+  &:hover { color: var(--m-text); }
+}

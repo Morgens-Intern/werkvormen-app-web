@@ -1,5 +1,6 @@
 import * as React from "react";
 import styles from "./WerkvormForm.module.scss";
+import { uploadWerkvormAfbeelding } from "../lib/afbeeldingenApi";
 import { Werkvorm, Categorie, Fase, Setting } from "../models/types";
 
 const CATEGORIES: Categorie[] = [
@@ -32,36 +33,6 @@ function linesToArr(s: string): string[] {
     .filter((x) => x.length > 0);
 }
 
-// Verkleint een gekozen afbeelding en levert een base64 data-URL op,
-// zodat de afbeelding compact meegaat in de lokale opslag.
-function fileToResizedDataUrl(file: File, maxW: number): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const img = new Image();
-      img.onload = () => {
-        const scale = Math.min(1, maxW / img.width);
-        const w = Math.round(img.width * scale);
-        const h = Math.round(img.height * scale);
-        const canvas = document.createElement("canvas");
-        canvas.width = w;
-        canvas.height = h;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) {
-          reject(new Error("Canvas niet beschikbaar"));
-          return;
-        }
-        ctx.drawImage(img, 0, 0, w, h);
-        resolve(canvas.toDataURL("image/jpeg", 0.82));
-      };
-      img.onerror = () => reject(new Error("Ongeldige afbeelding"));
-      img.src = reader.result as string;
-    };
-    reader.onerror = () => reject(new Error("Kon bestand niet lezen"));
-    reader.readAsDataURL(file);
-  });
-}
-
 const WerkvormForm: React.FC<IWerkvormFormProps> = ({
   initial,
   titel,
@@ -92,12 +63,20 @@ const WerkvormForm: React.FC<IWerkvormFormProps> = ({
   const [imageUrl, setImageUrl] = React.useState(initial && initial.imageUrl ? initial.imageUrl : "");
   const [error, setError] = React.useState("");
 
+  const [uploadBezig, setUploadBezig] = React.useState(false);
+
   const onFile = (e: React.ChangeEvent<HTMLInputElement>): void => {
     const f = e.target.files && e.target.files[0];
     if (!f) return;
-    fileToResizedDataUrl(f, 900)
+    setError("");
+    setUploadBezig(true);
+    // De afbeelding gaat naar Supabase Storage; in de database komt alleen de
+    // URL te staan. Vroeger werd hier een base64 data-URL van gemaakt, en die
+    // ging dan mee met élke query op de werkvormen-tabel.
+    uploadWerkvormAfbeelding(f)
       .then((url) => setImageUrl(url))
-      .catch(() => setError("Kon de afbeelding niet verwerken."));
+      .catch((err) => setError(err instanceof Error ? err.message : String(err)))
+      .finally(() => setUploadBezig(false));
   };
 
   const toggle = (
@@ -251,12 +230,23 @@ const WerkvormForm: React.FC<IWerkvormFormProps> = ({
                 </button>
               </div>
             )}
-            <input type="file" accept="image/*" onChange={onFile} />
+            <input type="file" accept="image/*" onChange={onFile} disabled={uploadBezig} />
+            {uploadBezig && <span className={styles.uploadBezig}>Bezig met uploaden…</span>}
             <input
-              value={imageUrl.indexOf("data:") === 0 ? "" : imageUrl}
+              value={imageUrl}
               placeholder="of plak een afbeeldings-URL"
               onChange={(e) => setImageUrl(e.target.value)}
             />
+            {imageUrl && (
+              <button
+                type="button"
+                className={styles.afbeeldingWeg}
+                onClick={() => setImageUrl("")}
+                title="Terug naar de standaardafbeelding van deze werkvorm"
+              >
+                Afbeelding wissen
+              </button>
+            )}
           </div>
 
           {error && <p className={styles.error}>{error}</p>}
