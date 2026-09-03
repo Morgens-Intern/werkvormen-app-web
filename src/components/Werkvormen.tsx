@@ -18,6 +18,7 @@ import Sidebar from "./Sidebar";
 import BouwplanBuilder from "./BouwplanBuilder";
 import AdminView from "./AdminView";
 import InspiratieView from "./InspiratieView";
+import HelpView from "./HelpView";
 
 
 
@@ -494,6 +495,8 @@ const Werkvormen: React.FC<IWerkvormenProps> = (props) => {
           onShowWerkvorm={setSelected}
         />
       )}
+
+      {activeView === "uitleg" && <HelpView isAdmin={props.isAdmin} />}
 
       {activeView === "beheer" && props.isAdmin && (
         <AdminView

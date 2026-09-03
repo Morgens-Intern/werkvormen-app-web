@@ -1,0 +1,67 @@
+.help {
+  padding: 24px;
+  max-width: 760px;
+  margin: 0 auto;
+  color: var(--m-text-2);
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+.titel {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 28px;
+  margin: 0 0 8px;
+  color: var(--m-navy);
+}
+
+.intro {
+  margin: 0 0 8px;
+  font-size: 16px;
+  color: var(--m-text-2);
+}
+
+.sectie {
+  padding: 20px 0;
+  border-top: 1px solid var(--m-border);
+
+  p { margin: 0 0 12px; }
+  p:last-child { margin-bottom: 0; }
+}
+
+.kop {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 19px;
+  margin: 0 0 12px;
+  color: var(--m-navy);
+}
+
+.lijst {
+  margin: 0 0 12px;
+  padding-left: 20px;
+
+  li { margin-bottom: 9px; }
+  li:last-child { margin-bottom: 0; }
+
+  strong { color: var(--m-text); }
+}
+
+/* Voor uitspraken die je niet wilt dat mensen overslaan: bewaarplekken,
+   onomkeerbare acties, waar de data staat. */
+.nadruk {
+  padding: 11px 14px;
+  border-left: 3px solid var(--m-blue);
+  background: var(--m-surface-2);
+  border-radius: 0 8px 8px 0;
+  color: var(--m-text);
+}
+
+.beheer {
+  background: var(--m-blue-tint);
+  border-radius: 12px;
+  padding: 20px;
+  border-top: none;
+  margin: 8px 0;
+
+  .kop { margin-top: 0; }
+  .nadruk { background: var(--m-surface); }
+}

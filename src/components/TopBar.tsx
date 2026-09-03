@@ -75,6 +75,9 @@ const TopBar: React.FC<ITopBarProps> = ({
         <button type="button" className={styles.navItem} onClick={onPropose} title="Stel een nieuwe werkvorm voor">
           Nieuwe werkvorm
         </button>
+        <button type="button" className={navClass("uitleg")} onClick={() => onNavigate("uitleg")} title="Wat de app kan en wat niet">
+          Uitleg
+        </button>
         {isAdmin && (
           <button type="button" className={navClass("beheer")} onClick={() => onNavigate("beheer")} title="Gebruikers en rollen beheren">
             Beheer
